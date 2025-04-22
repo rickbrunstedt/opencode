@@ -1,24 +1,22 @@
 version: 2
-project_name: opencode
+project_name: sst
 before:
   hooks:
+    - go mod tidy
+    - go test ./cmd/... ./pkg/...
 builds:
   - env:
       - CGO_ENABLED=0
     goos:
       - linux
       - darwin
-    goarch:
-      - amd64
-      - arm64
-    ldflags:
-      - -s -w -X github.com/opencode-ai/opencode/internal/version.Version={{.Version}}
-    main: ./main.go
+    main: ./cmd/sst
 
 archives:
   - format: tar.gz
+    # this name template makes the OS and Arch compatible with the results of uname.
     name_template: >-
-      opencode-
+      sst-
       {{- if eq .Os "darwin" }}mac-
       {{- else if eq .Os "windows" }}windows-
       {{- else if eq .Os "linux" }}linux-{{end}}
@@ -26,6 +24,7 @@ archives:
       {{- else if eq .Arch "#86" }}i386
       {{- else }}{{ .Arch }}{{ end }}
       {{- if .Arm }}v{{ .Arm }}{{ end }}
+    # use zip for windows archives
     format_overrides:
       - goos: windows
         format: zip
@@ -34,27 +33,20 @@ checksum:
 snapshot:
   name_template: "0.0.0-{{ .Timestamp }}"
 aurs:
-  - name: opencode
-    homepage: "https://github.com/opencode-ai/opencode"
-    description: "terminal based agent that can build anything"
-    maintainers:
-      - "kujtimiihoxha <kujtimii.h@gmail.com>"
-    license: "MIT"
+  - homepage: "https://github.com/sst/sst"
+    description: "Deploy anything"
     private_key: "{{ .Env.AUR_KEY }}"
-    git_url: "ssh://aur@aur.archlinux.org/opencode-bin.git"
-    provides:
-      - opencode
-    conflicts:
-      - opencode
+    git_url: "ssh://aur@aur.archlinux.org/sst-bin.git"
+    license: "MIT"
     package: |-
-      install -Dm755 ./opencode "${pkgdir}/usr/bin/opencode"
+      install -Dm755 ./sst "${pkgdir}/usr/bin/sst"
 brews:
   - repository:
-      owner: opencode-ai
+      owner: sst
       name: homebrew-tap
 nfpms:
-  - maintainer: kujtimiihoxha
-    description: terminal based agent that can build anything
+  - maintainer: sst
+    description: the sst cli
     formats:
       - deb
       - rpm
@@ -62,6 +54,14 @@ nfpms:
       {{ .ProjectName }}-
       {{- if eq .Os "darwin" }}mac
       {{- else }}{{ .Os }}{{ end }}-{{ .Arch }}
+
+# scoop:
+#   bucket:
+#     owner: sst
+#     name: scoop-bucket
+#   homepage: "https://github.com/sst/ion"
+#   description: "sst cli"
+#   license: Apache 2.0
 
 changelog:
   sort: asc
