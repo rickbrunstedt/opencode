@@ -67,6 +67,7 @@ type providerClientOptions struct {
 	openaiOptions    []OpenAIOption
 	geminiOptions    []GeminiOption
 	bedrockOptions   []BedrockOption
+	ollamaOptions    []OllamaOption
 }
 
 type ProviderClientOption func(*providerClientOptions)
@@ -114,6 +115,11 @@ func NewProvider(providerName models.ModelProvider, opts ...ProviderClientOption
 		return &baseProvider[OpenAIClient]{
 			options: clientOptions,
 			client:  newOpenAIClient(clientOptions),
+		}, nil
+	case models.ProviderOllama:
+		return &baseProvider[OllamaClient]{
+			options: clientOptions,
+			client:  newOllamaClient(clientOptions),
 		}, nil
 	case models.ProviderMock:
 		// TODO: implement mock client for test
@@ -192,5 +198,11 @@ func WithGeminiOptions(geminiOptions ...GeminiOption) ProviderClientOption {
 func WithBedrockOptions(bedrockOptions ...BedrockOption) ProviderClientOption {
 	return func(options *providerClientOptions) {
 		options.bedrockOptions = bedrockOptions
+	}
+}
+
+func WithOllamaOptions(ollamaOptions ...OllamaOption) ProviderClientOption {
+	return func(options *providerClientOptions) {
+		options.ollamaOptions = ollamaOptions
 	}
 }

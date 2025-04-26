@@ -4,8 +4,10 @@ package config
 import (
 	"fmt"
 	"log/slog"
+	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/opencode-ai/opencode/internal/llm/models"
 	"github.com/opencode-ai/opencode/internal/logging"
@@ -202,6 +204,7 @@ func setDefaults(debug bool) {
 // 3. Google Gemini
 // 4. Groq
 // 5. AWS Bedrock
+// 6. Ollama
 func setProviderDefaults() {
 	// Anthropic configuration
 	if apiKey := os.Getenv("ANTHROPIC_API_KEY"); apiKey != "" {
@@ -246,6 +249,15 @@ func setProviderDefaults() {
 		viper.SetDefault("agents.title.model", models.BedrockClaude37Sonnet)
 		return
 	}
+	
+	// Ollama configuration (check if Ollama is running)
+	if isOllamaRunning() {
+		viper.SetDefault("providers.ollama.apiKey", "local") // Not used but needed for config validation
+		viper.SetDefault("agents.coder.model", models.OllamaCodeLlama)
+		viper.SetDefault("agents.task.model", models.OllamaLlama3)
+		viper.SetDefault("agents.title.model", models.OllamaLlama3)
+		return
+	}
 }
 
 // hasAWSCredentials checks if AWS credentials are available in the environment.
@@ -272,6 +284,22 @@ func hasAWSCredentials() bool {
 	}
 
 	return false
+}
+
+// isOllamaRunning checks if Ollama is running by making a request to its API.
+func isOllamaRunning() bool {
+	client := &http.Client{
+		Timeout: 2 * time.Second, // Short timeout for quick check
+	}
+	
+	// Try to connect to Ollama API
+	resp, err := client.Get("http://localhost:11434/api/tags")
+	if err != nil {
+		return false
+	}
+	defer resp.Body.Close()
+	
+	return resp.StatusCode == http.StatusOK
 }
 
 // readConfig handles the result of reading a configuration file.
@@ -484,6 +512,10 @@ func getProviderAPIKey(provider models.ModelProvider) string {
 		if hasAWSCredentials() {
 			return "aws-credentials-available"
 		}
+	case models.ProviderOllama:
+		if isOllamaRunning() {
+			return "local" // Not actually used for authentication
+		}
 	}
 	return ""
 }
@@ -572,6 +604,27 @@ func setDefaultModelForAgent(agent AgentName) bool {
 			Model:           models.BedrockClaude37Sonnet,
 			MaxTokens:       maxTokens,
 			ReasoningEffort: "medium", // Claude models support reasoning
+		}
+		return true
+	}
+	
+	if isOllamaRunning() {
+		var model models.ModelID
+		maxTokens := int64(4096)
+		
+		switch agent {
+		case AgentTitle:
+			model = models.OllamaLlama3
+			maxTokens = 80
+		case AgentTask:
+			model = models.OllamaLlama3
+		default:
+			model = models.OllamaCodeLlama
+		}
+		
+		cfg.Agents[agent] = Agent{
+			Model:     model,
+			MaxTokens: maxTokens,
 		}
 		return true
 	}
